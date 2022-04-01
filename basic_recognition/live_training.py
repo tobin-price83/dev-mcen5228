@@ -47,6 +47,33 @@ def gstreamer_pipeline(
 	)
 	)
 
+def v4l_pipeline(
+	camera_id=1,
+	capture_width=640,
+	capture_height=480,
+	display_width=640,
+	display_height=480,
+	framerate=30,
+	# flip_method=0
+):
+	return (
+		"v4l2src device=/dev/video%d ! "
+		"video/x-raw, width=(int)%d, height=(int)%d, framerate=(fraction)%d/1 ! "
+		# "nvvidconv ! "
+		# "video/x-raw, width=(int)%d, height=(int)%d, format=(string)BGRx ! "
+		"videoconvert ! "
+		"video/x-raw, width=(int)%d, height=(int)%d, format=(string)BGR ! appsink"
+		% (
+            camera_id,
+            capture_width,
+            capture_height,
+            framerate,
+            # flip_method,
+            display_width,
+            display_height,
+        )
+	)
+
 def running_on_jetson_nano():
 	return platform.machine() == "aarch64"
 
@@ -128,8 +155,8 @@ def capture_mode(margin):
 
 	# Clear face encodings from previous instance
 	print("Clearing face encodings...")
-	known_face_encodings = []
-	known_face_metadata = []
+	known_face_encodings.clear()
+	known_face_metadata.clear()
 
 	# start video stream
 	if running_on_jetson_nano():
@@ -226,7 +253,8 @@ def live_video():
 
 	# initialize camera stream
 	if running_on_jetson_nano():
-		video_capture = cv2.VideoCapture(gstreamer_pipeline(flip_method=2),cv2.CAP_GSTREAMER)
+		# video_capture = cv2.VideoCapture(gstreamer_pipeline(flip_method=2),cv2.CAP_GSTREAMER)
+		video_capture = cv2.VideoCapture(v4l_pipeline(),cv2.CAP_GSTREAMER)
 	else:
 		video_capture= cv2.VideoCapture(0)
 

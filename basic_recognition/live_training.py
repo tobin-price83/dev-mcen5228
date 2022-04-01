@@ -85,7 +85,7 @@ def lookup_known_face(face_encoding):
 
 	best_match_index = np.argmin(face_distances)
 
-	if face_distances[best_match_index] < 0.65:
+	if face_distances[best_match_index] < 0.6:
 		metadata = known_face_metadata[best_match_index]
 
 	return metadata

@@ -52,19 +52,24 @@ brody_face_encoding = face_recognition.face_encodings(brody_image)[0]
 ram_image = face_recognition.load_image_file("./train_dir/ryan.jpg")
 ram_face_encoding = face_recognition.face_encodings(ram_image)[0]
 
+tobin_image = face_recognition.load_image_file("./train_dir/tobin.jpg")
+tobin_face_encoding = face_recognition.face_encodings(tobin_image)[0]
+
 
 # Create arrays of known face encodings and their names
 known_face_encodings = [
     ryan_face_encoding,
     trey_face_encoding,
     brody_face_encoding,
-    ram_face_encoding
+    ram_face_encoding,
+    tobin_face_encoding
 ]
 known_face_names = [
     "Ryan",
     "Trey",
     "Brody", 
-    "Ram"
+    "Ram",
+    "Tobin"
 ]
 
 # Initialize some variables
@@ -89,7 +94,8 @@ while True:
     # Only process every other frame of video to save time
     if process_this_frame:
         # Find all the faces and face encodings in the current frame of video
-        face_locations = face_recognition.face_locations(rgb_small_frame, model='cnn')
+        # face_locations = face_recognition.face_locations(rgb_small_frame, number_of_times_to_upsample=0, model='cnn')
+        face_locations = face_recognition.face_locations(rgb_small_frame)
         face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
 
         face_names = []

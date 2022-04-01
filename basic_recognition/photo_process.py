@@ -21,7 +21,8 @@ def process_photo(source_path,output_path,margin=0):
 
 	# Resize image to a smaller target
 	(width, height) = image.size
-	image_newsize = (640,480)
+	# image_newsize = (640,480)
+	image_newsize = image.size
 	(width_new, height_new) = image_newsize
 	small_image = image.resize(image_newsize)
 
@@ -35,7 +36,8 @@ def process_photo(source_path,output_path,margin=0):
 	
 	# Detect face bounds
 	print("Finding face bounds...")
-	face_location = face_recognition.face_locations(small_RGB, model='cnn')
+	face_location = face_recognition.face_locations(small_RGB, number_of_times_to_upsample=0, model='cnn')
+	# face_location = face_recognition.face_locations(small_RGB)
 	(top, right, bottom, left) = face_location[0]
 
 	# Scale bounding box for original image size

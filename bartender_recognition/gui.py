@@ -30,21 +30,25 @@ height = 600;
 startheight = 300;
 startwidth = 500;
 
-class CaptureVideoThread(QThread):
+class GSTThread(QThread):
     changePixmap = pyqtSignal(QImage)
     vid_rec = video_recognition.VideoRecognition()
 
     def __init__(self, Parent=None):
         super().__init__()
         self._run_flag = True
+        self._preview_flag = False
 
-    def start_gst(self):
-        # flag thread as running
-        self._run_flag = True
+        # start capture feed
+        cap = cv2.VideoCapture(video_recognition.gstreamer_pipeline(flip_method=2),cv2.CAP_GSTREAMER)
+        
+
+    def video_preview(self):
+        # flag preview thread as running
+        self._preview_flag = True
 
         # capture from CSI camera
-        cap = cv2.VideoCapture(video_recognition.gstreamer_pipeline(flip_method=2),cv2.CAP_GSTREAMER)
-        while self._run_flag:
+        while self._preview_flag:
             ret, cv_img = cap.read()
             if ret:
                 rgbImage = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
@@ -55,26 +59,26 @@ class CaptureVideoThread(QThread):
                 self.changePixmap.emit(p)
                 # self.change_pixmap_signal.emit(cv_img)
         # shut down capture system
-        cap.release()
+        # cap.release()
 
-    def start_v4l(self):
-        # flag thread as running
-        self._run_flag = True
+    # def start_v4l(self):
+    #     # flag thread as running
+    #     self._run_flag = True
 
-        # capture from webcam
-        cap = cv2.VideoCapture(video_recognition.v4l_pipeline(),cv2.CAP_GSTREAMER)
-        while self._run_flag:
-            ret, cv_img = cap.read()
-            if ret:
-                rgbImage = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
-                h, w, ch = rgbImage.shape
-                bytesPerLine = ch * w
-                convertToQtFormat = QImage(rgbImage.data, w, h, bytesPerLine, QImage.Format_RGB888)
-                p = convertToQtFormat.scaled(640, 480, Qt.KeepAspectRatio)
-                self.changePixmap.emit(p)
-                # self.change_pixmap_signal.emit(cv_img)
-        # shut down capture system
-        cap.release()
+    #     # capture from webcam
+    #     cap = cv2.VideoCapture(video_recognition.v4l_pipeline(),cv2.CAP_GSTREAMER)
+    #     while self._run_flag:
+    #         ret, cv_img = cap.read()
+    #         if ret:
+    #             rgbImage = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
+    #             h, w, ch = rgbImage.shape
+    #             bytesPerLine = ch * w
+    #             convertToQtFormat = QImage(rgbImage.data, w, h, bytesPerLine, QImage.Format_RGB888)
+    #             p = convertToQtFormat.scaled(640, 480, Qt.KeepAspectRatio)
+    #             self.changePixmap.emit(p)
+    #             # self.change_pixmap_signal.emit(cv_img)
+    #     # shut down capture system
+    #     cap.release()
 
     def face_capture(self):
         # vid_rec = video_recognition.VideoRecognition()
@@ -95,9 +99,14 @@ class CaptureVideoThread(QThread):
         cap.release()
 
     def stop(self):
+        self._preview_flag = False
+
+    def shutdown(self):
         """Sets run flag to False and waits for thread to finish"""
         self._run_flag = False
         self.wait()
+        # shut down capture system
+        cap.release()
 
 # class VideoThread(QThread):
 #     change_pixmap_signal = pyqtSignal(np.ndarray)
@@ -134,6 +143,9 @@ class MainWindow(QWidget):
         # create stacked layout
         self.stackedLayout = QStackedLayout()
 
+        # create video thread
+        self.thread = GSTThread()
+
         # create and connect window navigation
         # approach window
         approach_widget = ApproachWidget(self)
@@ -148,6 +160,8 @@ class MainWindow(QWidget):
         order_widget = OrderWidget(self)
         self.stackedLayout.addWidget(order_widget)
 
+        
+
         # make stacked layout central widget
         layout.addLayout(self.stackedLayout)
 
@@ -159,11 +173,16 @@ class MainWindow(QWidget):
     def scan_window(self):
         print("Opening scan menu")
         self.stackedLayout.setCurrentIndex(1)
-        self.layout.stackedLayout.scan_widget.video_feed(self)
+        self.video_preview()
+        # self.layout.stackedLayout.scan_widget.video_feed(self)
 
     def order_window(self):
         print("Opening order menu")
         self.stackedLayout.setCurrentIndex(2)
+
+    # def start_gst(self):
+    #     print("Starting gst feed")
+    #     self.thread.start_gst()
 
 
 class ApproachWidget(QWidget):
@@ -194,7 +213,8 @@ class ScanWidget(QWidget):
         # initialize video preview window
         self.video_feed = QLabel(w)
         self.video_feed.setGeometry(0,0,640,480)
-        video_thread = CaptureVideoThread()
+        # video_thread = CaptureVideoThread()
+        video_thread = self.parent().thread
         video_thread.changePixmap.connect(self.setImage)
 
         # scan button
@@ -220,23 +240,23 @@ class ScanWidget(QWidget):
     def video_feed(self):
         print("Called video_feed")
         # start video thread
-        video_thread.start_gst()
+        video_thread.video_preview()
 
     def scan_function(self):
         print("Scan ID clicked")
-        print("Stopping video thread")
+        print("Stopping video preview")
         video_thread.stop()
         self.parent().order_window()
 
     def exit_function(self):
         print("Exit button clicked")
-        print("Stopping video thread")
+        print("Stopping video preview")
         video_thread.stop()
         self.parent().approach_window()
 
     @pyqtSlot(QImage)
-    def setImage(self):
-        self.label.setPixmap(QPixmap.fromImage(image))
+    def setImage(self, image):
+        self.video_feed.setPixmap(QPixmap.fromImage(image))
 
 class OrderWidget(QWidget):
     def __init__(self, parent=None):

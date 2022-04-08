@@ -1,6 +1,10 @@
 import sys
 import time
 from random import randint
+import video_recognition
+import cv2
+import numpy as np
+
 
 from PyQt5.QtWidgets import (
     QApplication,
@@ -9,11 +13,13 @@ from PyQt5.QtWidgets import (
     QPushButton,
     QVBoxLayout,
     QWidget,
+    QStackedWidget,
+    QStackedLayout,
 )
 
-from PyQt5.QtGui import QIcon, QPalette, QColor, QPixmap
-from PyQt5.QtCore import pyqtSlot
-from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QIcon, QPalette, QColor, QPixmap, QFont, QImage
+from PyQt5.QtCore import pyqtSignal, pyqtSlot, QThread, Qt
+from PyQt5 import QtCore, QtGui
 
 bsize = 200;
 hsize = 45;
@@ -24,234 +30,331 @@ height = 600;
 startheight = 300;
 startwidth = 500;
 
-class MainWindow(QMainWindow):
-    def __init__(self):
+class CaptureVideoThread(QThread):
+    changePixmap = pyqtSignal(QImage)
+    vid_rec = video_recognition.VideoRecognition()
+
+    def __init__(self, Parent=None):
         super().__init__()
-        # self.window1 = Window()
-        l = QVBoxLayout()
-        w = QWidget()
-        self.setStyleSheet('QWidget {font: "Roboto Mono"}')
+        self._run_flag = True
 
-        # l = QVBoxLayout()
-        # self.button1 = QPushButton("Push for Window 1")
-        # self.button1.clicked.connect(
-        #     lambda checked: self.toggle_window()
-        # )
-        # l.addWidget(self.button1)
+    def start_gst(self):
+        # flag thread as running
+        self._run_flag = True
 
-        ### APPROACH MENU ### --------------------------------------------------------------------------------------------
-        self.button_start = QPushButton(w)
-        self.button_start.setGeometry(0, 0, startwidth, startheight)
-        self.button_start.setText("Place Order")
-        self.button_start.move(width/2-startwidth/2, height/2 - startheight/2)
-        self.button_start.clicked.connect(
-            lambda checked: self.button_start_clicked()
-        )
-        self.button_start.show()
+        # capture from CSI camera
+        cap = cv2.VideoCapture(video_recognition.gstreamer_pipeline(flip_method=2),cv2.CAP_GSTREAMER)
+        while self._run_flag:
+            ret, cv_img = cap.read()
+            if ret:
+                rgbImage = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
+                h, w, ch = rgbImage.shape
+                bytesPerLine = ch * w
+                convertToQtFormat = QImage(rgbImage.data, w, h, bytesPerLine, QImage.Format_RGB888)
+                p = convertToQtFormat.scaled(640, 480, Qt.KeepAspectRatio)
+                self.changePixmap.emit(p)
+                # self.change_pixmap_signal.emit(cv_img)
+        # shut down capture system
+        cap.release()
 
-        ### SCAN MENU ### --------------------------------------------------------------------------------------------
-        self.button_scan = QPushButton(w)
-        self.button_scan.setGeometry(0, 0, 900, 40)
-        self.button_scan.setText("Scan ID")
-        self.button_scan.move(62, 4*vsize + 2*bsize + buf - 60)
-        self.button_scan.clicked.connect(
-            lambda checked: self.button_scan_clicked()
-        )
-        self.button_scan.hide()
+    def start_v4l(self):
+        # flag thread as running
+        self._run_flag = True
 
-        self.button_exit = QPushButton(w)
-        self.button_exit.setGeometry(0, 0, 900, 40)
-        self.button_exit.setText("Cancel Order")
-        self.button_exit.move(62, 4*vsize + 2*bsize + buf)
-        self.button_exit.clicked.connect(
-            lambda checked: self.button_exit_clicked()
-        )
-        self.button_exit.hide()
+        # capture from webcam
+        cap = cv2.VideoCapture(video_recognition.v4l_pipeline(),cv2.CAP_GSTREAMER)
+        while self._run_flag:
+            ret, cv_img = cap.read()
+            if ret:
+                rgbImage = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
+                h, w, ch = rgbImage.shape
+                bytesPerLine = ch * w
+                convertToQtFormat = QImage(rgbImage.data, w, h, bytesPerLine, QImage.Format_RGB888)
+                p = convertToQtFormat.scaled(640, 480, Qt.KeepAspectRatio)
+                self.changePixmap.emit(p)
+                # self.change_pixmap_signal.emit(cv_img)
+        # shut down capture system
+        cap.release()
 
-        # self.id_image = QPixmap('./id_image.jpeg')
-        # self.move(100, 100)
-        # self.id_image.show()
+    def face_capture(self):
+        # vid_rec = video_recognition.VideoRecognition()
+        # capture from rpi camera
+        cap = cv2.VideoCapture(video_recognition.gstreamer_pipeline(flip_method=2),cv2.CAP_GSTREAMER)
 
-        # self.pic = QLabel(self)
-        # self.pic.setPixmap(QPixmap("./id_image.jpg"))
-        # self.pic.move(100, 100)
-        # self.pic.show()
+        process_this_frame = True
 
-        # label.setPixmap(pixmap)
-        # self.resize(id_image.width(),i.height())
+        while self._run_flag:
+            ret, cv_img = cap.read()
+            if ret:
+                if process_this_frame:
+                    preview_frame = vid_rec.find_faces(cv_img)
+                process_this_frame = not process_this_frame
+                preview_frame = vid_rec.preview_frame(cv_img)
+                self.change_pixmap_signal.emit(cv_img)
+        # shut down capture system
+        cap.release()
 
-        ### ORDERING MENU ### --------------------------------------------------------------------------------------------
+    def stop(self):
+        """Sets run flag to False and waits for thread to finish"""
+        self._run_flag = False
+        self.wait()
+
+# class VideoThread(QThread):
+#     change_pixmap_signal = pyqtSignal(np.ndarray)
+
+#     def __init__(self):
+#         super().__init__()
+#         self._run_flag = True
+
+#     def run(self):
+#         # capture from web cam
+#         cap = cv2.VideoCapture(0)
+#         while self._run_flag:
+#             ret, cv_img = cap.read()
+#             if ret:
+#                 self.change_pixmap_signal.emit(cv_img)
+#         # shut down capture system
+#         cap.release()
+
+#     def stop(self):
+#         """Sets run flag to False and waits for thread to finish"""
+#         self._run_flag = False
+#         self.wait()
+
+class MainWindow(QWidget):
+    def __init__(self, parent=None):
+        super(MainWindow, self).__init__(parent)
+        self.setWindowTitle("Bartender Gui")
         
+        # top-level layout
+        w = QWidget()
+        layout = QVBoxLayout()
+
+        self.setLayout(layout)
+        # create stacked layout
+        self.stackedLayout = QStackedLayout()
+
+        # create and connect window navigation
+        # approach window
+        approach_widget = ApproachWidget(self)
+        approach_widget.button.clicked.connect(self.scan_window)
+        self.stackedLayout.addWidget(approach_widget)
+        # scan window
+        scan_widget = ScanWidget(self)
+        scan_widget.scan_button.clicked.connect(self.order_window)
+        scan_widget.exit_button.clicked.connect(self.approach_window)
+        self.stackedLayout.addWidget(scan_widget)
+        # order window
+        order_widget = OrderWidget(self)
+        self.stackedLayout.addWidget(order_widget)
+
+        # make stacked layout central widget
+        layout.addLayout(self.stackedLayout)
+
+
+    def approach_window(self):
+        print("Opening approach menu")
+        self.stackedLayout.setCurrentIndex(0)
+
+    def scan_window(self):
+        print("Opening scan menu")
+        self.stackedLayout.setCurrentIndex(1)
+        self.layout.stackedLayout.scan_widget.video_feed(self)
+
+    def order_window(self):
+        print("Opening order menu")
+        self.stackedLayout.setCurrentIndex(2)
+
+
+class ApproachWidget(QWidget):
+    def __init__(self, parent=None):
+        super(ApproachWidget, self).__init__(parent)
+        w = QWidget()
+        self.button = QPushButton(w)
+        self.button.setFont(QFont('Arial',24))
+        self.button.setText("Place Order")
+        self.button.setGeometry(0,0,startwidth,startheight)
+        self.button.move(width/2-startwidth/2, height/2 - startheight/2)
+        layout = QVBoxLayout()
+        layout.addWidget(w)
+        self.button.clicked.connect(self.enter_function)
+        self.setLayout(layout)
+
+    def enter_function(self):
+        print("Place Order button clicked")
+        self.parent().scan_window()
+
+
+class ScanWidget(QWidget):
+    def __init__(self, parent=None):
+        super(ScanWidget, self).__init__(parent)
+        layout = QVBoxLayout()
+        w = QWidget()
+        
+        # initialize video preview window
+        self.video_feed = QLabel(w)
+        self.video_feed.setGeometry(0,0,640,480)
+        video_thread = CaptureVideoThread()
+        video_thread.changePixmap.connect(self.setImage)
+
+        # scan button
+        self.scan_button = QPushButton(w)
+        self.scan_button.setFont(QFont('Arial',16))
+        self.scan_button.setText("Scan ID")
+        self.scan_button.setGeometry(0,0,900,40)
+        self.scan_button.move(62, 4*vsize + 2*bsize + buf - 72)
+        self.scan_button.clicked.connect(self.scan_function)
+
+        # exit button
+        self.exit_button = QPushButton(w)
+        self.exit_button.setFont(QFont('Arial',16))
+        self.exit_button.setText("Exit")
+        self.exit_button.setGeometry(0,0,900,40)
+        self.exit_button.move(62, 4*vsize + 2*bsize + buf-20)
+        self.exit_button.clicked.connect(self.exit_function)
+
+        layout.addWidget(w)
+        # layout.addWidget(self.video_feed)
+        self.setLayout(layout)
+
+    def video_feed(self):
+        print("Called video_feed")
+        # start video thread
+        video_thread.start_gst()
+
+    def scan_function(self):
+        print("Scan ID clicked")
+        print("Stopping video thread")
+        video_thread.stop()
+        self.parent().order_window()
+
+    def exit_function(self):
+        print("Exit button clicked")
+        print("Stopping video thread")
+        video_thread.stop()
+        self.parent().approach_window()
+
+    @pyqtSlot(QImage)
+    def setImage(self):
+        self.label.setPixmap(QPixmap.fromImage(image))
+
+class OrderWidget(QWidget):
+    def __init__(self, parent=None):
+        super(OrderWidget, self).__init__(parent)
+        w = QWidget()
+        layout = QVBoxLayout()
+
+        #  TOP ROW
+
+        # button 1
         self.button1 = QPushButton(w)
         self.button1.setGeometry(0, 0, bsize, bsize)
         self.button1.setText("Drink 1")
         self.button1.move(hsize, vsize+buf)
-        self.button1.clicked.connect(
-            lambda checked: self.button1_clicked()
-        )
-        self.button1.hide()
+        self.button1.clicked.connect(self.button1_clicked)
 
+        # button 2
         self.button2 = QPushButton(w)
         self.button2.setGeometry( 0, 0, bsize, bsize)
         self.button2.setText("Drink 2")
         self.button2.move(2*hsize + bsize, vsize+buf)
-        self.button2.clicked.connect(
-            lambda checked: self.button2_clicked()
-        )
-        self.button2.hide()
+        self.button2.clicked.connect(self.button2_clicked)
 
+        # button 3 
         self.button3 = QPushButton(w)
         self.button3.setGeometry(0, 0, bsize, bsize)
         self.button3.setText("Drink 3")
         self.button3.move(3*hsize + 2*bsize, vsize+buf)
-        self.button3.clicked.connect(
-            lambda checked: self.button3_clicked()
-        )
-        self.button3.hide()
+        self.button3.clicked.connect(self.button3_clicked)
 
+        # button 4
         self.button4 = QPushButton(w)
         self.button4.setGeometry(0, 0, bsize, bsize)
         self.button4.setText("Drink 4")
         self.button4.move(4*hsize + 3*bsize, vsize+buf)
-        self.button4.clicked.connect(
-            lambda checked: self.button4_clicked()
-        )
-        self.button4.hide()
+        self.button4.clicked.connect(self.button4_clicked)
+
 
         #  BOTTOM ROW
 
+        # button 5
         self.button5 = QPushButton(w)
         self.button5.setGeometry(0, 0, bsize, bsize)
         self.button5.setText("Drink 5")
         self.button5.move(hsize, 2*vsize+bsize+buf)
-        self.button5.clicked.connect(
-            lambda checked: self.button5_clicked()
-        )
-        self.button5.hide()
-
+        self.button5.clicked.connect(self.button5_clicked)
+        
+        # button 6
         self.button6 = QPushButton(w)
         self.button6.setGeometry( 0, 0, bsize, bsize)
         self.button6.setText("Drink 6")
         self.button6.move(2*hsize + bsize,  2*vsize+bsize+buf)
-        self.button6.clicked.connect(
-            lambda checked: self.button6_clicked()
-        )
-        self.button6.hide()
+        self.button6.clicked.connect(self.button6_clicked)
 
+        # button 7
         self.button7 = QPushButton(w)
         self.button7.setGeometry(0, 0, bsize, bsize)
         self.button7.setText("Drink 7")
         self.button7.move(3*hsize + 2*bsize,  2*vsize+bsize+buf)
-        self.button7.clicked.connect(
-            lambda checked: self.button7_clicked()
-        )
-        self.button7.hide()
+        self.button7.clicked.connect(self.button7_clicked)
 
+        # button 8
         self.button8 = QPushButton(w)
         self.button8.setGeometry(0, 0, bsize, bsize)
         self.button8.setText("Drink 8")
         self.button8.move(4*hsize + 3*bsize,  2*vsize+bsize+buf)
-        self.button8.clicked.connect(
-            lambda checked: self.button8_clicked()
-        )
-        self.button8.hide()
-    
+        self.button8.clicked.connect(self.button8_clicked)
 
-        # w.setLayout(l)
-        
-        self.setCentralWidget(w)
-        
-    def hide_all_buttons(self):
-        self.button1.hide()
-        self.button2.hide() 
-        self.button3.hide() 
-        self.button4.hide() 
-        self.button5.hide() 
-        self.button6.hide() 
-        self.button7.hide() 
-        self.button8.hide() 
-        self.button_scan.hide()
-
-    def show_all_buttons(self):
-        self.button1.show()
-        self.button2.show() 
-        self.button3.show() 
-        self.button4.show() 
-        self.button5.show() 
-        self.button6.show() 
-        self.button7.show() 
-        self.button8.show() 
-
-    def button_start_clicked(self):
-        self.button_start.hide()
-        self.button_scan.show()
-        self.button_exit.show()
-
-    def button_scan_clicked(self):
-        self.button_scan.hide()
-        self.show_all_buttons()
-
-    def button_exit_clicked(self):
-        self.hide_all_buttons()
-        self.button_exit.hide()
-        self.button_start.show()
-        print("Exit Button Pushed")
+        layout.addWidget(w)
+        self.setLayout(layout)
 
     def button1_clicked(self):
-        self.hide_all_buttons()
         print("Button 1 clicked")
+        # return to approach menu
         time.sleep(1)
-        self.button_start.show()
-        self.button_exit.hide()
+        self.parent().approach_window()
 
     def button2_clicked(self):
-        self.hide_all_buttons()
-        print("Button 2 clicked")   
+        print("Button 2 clicked")
+        # return to approach menu
         time.sleep(1)
-        self.button_start.show()
-        self.button_exit.hide()
+        self.parent().approach_window()
 
     def button3_clicked(self):
-        self.hide_all_buttons()
-        print("Button 3 clicked")  
+        print("Button 3 clicked")
+        # return to approach menu
         time.sleep(1)
-        self.button_start.show()
-        self.button_exit.hide()
+        self.parent().approach_window()
 
     def button4_clicked(self):
-        self.hide_all_buttons()
-        print("Button 4 clicked")  
+        print("Button 4 clicked")
+        # return to approach menu
         time.sleep(1)
-        self.button_start.show()
-        self.button_exit.hide()
+        self.parent().approach_window()
 
     def button5_clicked(self):
-        self.hide_all_buttons()
         print("Button 5 clicked")
+        # return to approach menu
         time.sleep(1)
-        self.button_start.show()
-        self.button_exit.hide()
+        self.parent().approach_window()
 
     def button6_clicked(self):
-        self.hide_all_buttons()
-        print("Button 6 clicked")   
+        print("Button 6 clicked")
+        # return to approach menu
         time.sleep(1)
-        self.button_start.show()
-        self.button_exit.hide()
+        self.parent().approach_window()
 
     def button7_clicked(self):
-        self.hide_all_buttons()
-        print("Button 7 clicked")  
+        print("Button 7 clicked")
+        # return to approach menu
         time.sleep(1)
-        self.button_start.show()
-        self.button_exit.hide()
+        self.parent().approach_window()
 
     def button8_clicked(self):
-        self.hide_all_buttons()
         print("Button 8 clicked")
+        # return to approach menu
         time.sleep(1)
-        self.button_start.show()
-        self.button_exit.hide()
+        self.parent().approach_window()
 
 
 def make_gui():
@@ -274,5 +377,9 @@ def make_gui():
 
     w = MainWindow()
     w.setGeometry(100, 100, 1024, 600)
+    # w.setGeometry(100, 100, 720, 480)
     w.show()
     app.exec()
+
+if __name__ == '__main__':
+    make_gui()

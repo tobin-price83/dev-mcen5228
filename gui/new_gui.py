@@ -1,6 +1,19 @@
 import sys
 import time
 from random import randint
+import Jetson.GPIO as GPIO
+
+# Set up GPIO
+GPIO.setmode(GPIO.BOARD) # Other options are BCM, CVM, and TEGRA_SOC
+
+bit1 = 36
+bit2 = 38
+bit3 = 40
+
+GPIO.setup(bit1, GPIO.OUT)
+GPIO.setup(bit2, GPIO.OUT)
+GPIO.setup(bit3, GPIO.OUT)
+
 
 from PyQt5.QtWidgets import (
     QApplication,
@@ -201,6 +214,7 @@ class MainWindow(QMainWindow):
         self.hide_all_buttons()
         print("Button 1 clicked")
         time.sleep(1)
+        pumpCall(1) # Call func
         self.button_start.show()
         self.button_exit.hide()
 
@@ -208,6 +222,7 @@ class MainWindow(QMainWindow):
         self.hide_all_buttons()
         print("Button 2 clicked")   
         time.sleep(1)
+        pumpCall(2) # Call func
         self.button_start.show()
         self.button_exit.hide()
 
@@ -215,6 +230,7 @@ class MainWindow(QMainWindow):
         self.hide_all_buttons()
         print("Button 3 clicked")  
         time.sleep(1)
+        pumpCall(3)
         self.button_start.show()
         self.button_exit.hide()
 
@@ -222,6 +238,7 @@ class MainWindow(QMainWindow):
         self.hide_all_buttons()
         print("Button 4 clicked")  
         time.sleep(1)
+        pumpCall(4)
         self.button_start.show()
         self.button_exit.hide()
 
@@ -229,6 +246,7 @@ class MainWindow(QMainWindow):
         self.hide_all_buttons()
         print("Button 5 clicked")
         time.sleep(1)
+        pumpCall(5)
         self.button_start.show()
         self.button_exit.hide()
 
@@ -236,6 +254,7 @@ class MainWindow(QMainWindow):
         self.hide_all_buttons()
         print("Button 6 clicked")   
         time.sleep(1)
+        pumpCall(6)
         self.button_start.show()
         self.button_exit.hide()
 
@@ -243,6 +262,7 @@ class MainWindow(QMainWindow):
         self.hide_all_buttons()
         print("Button 7 clicked")  
         time.sleep(1)
+        pumpCall(7)
         self.button_start.show()
         self.button_exit.hide()
 
@@ -250,28 +270,113 @@ class MainWindow(QMainWindow):
         self.hide_all_buttons()
         print("Button 8 clicked")
         time.sleep(1)
+        pumpCall(8)
         self.button_start.show()
         self.button_exit.hide()
 
+# Function for pump call
+def pumpCall(flag):
+    if flag == 1:
+      # Write a binary 1
+        GPIO.output(bit1, False)
+        GPIO.output(bit2, False)
+        GPIO.output(bit3, True)
+
+        time.sleep(1)
+
+        GPIO.output(bit1, False)
+        GPIO.output(bit2, False)
+        GPIO.output(bit3, False)
+        
+    elif flag == 2:
+        # Write a binary 2
+        GPIO.output(bit1, False)
+        GPIO.output(bit2, True)
+        GPIO.output(bit3, False)
+
+        time.sleep(1)
+
+        GPIO.output(bit1, False)
+        GPIO.output(bit2, False)
+        GPIO.output(bit3, False)
+        
+    elif flag == 3:
+        # Write a binary 3
+        GPIO.output(bit1, False)
+        GPIO.output(bit2, True)
+        GPIO.output(bit3, True)
+
+        time.sleep(1)
+
+        GPIO.output(bit1, False)
+        GPIO.output(bit2, False)
+        GPIO.output(bit3, False)
+        
+    elif flag == 4:
+        # Write a binary 4
+        GPIO.output(bit1, True)
+        GPIO.output(bit2, False)
+        GPIO.output(bit3, False)
+
+        time.sleep(1)
+
+        GPIO.output(bit1, False)
+        GPIO.output(bit2, False)
+        GPIO.output(bit3, False)
+        
+    elif flag == 5:
+        # Write a binary 5
+        GPIO.output(bit1, True)
+        GPIO.output(bit2, False)
+        GPIO.output(bit3, True)
+
+        time.sleep(1)
+
+        GPIO.output(bit1, False)
+        GPIO.output(bit2, False)
+        GPIO.output(bit3, False)
+        
+        
+    elif flag == 6:
+        # Write a binary 6
+        GPIO.output(bit1, True)
+        GPIO.output(bit2, True)
+        GPIO.output(bit3, False) 
+
+        time.sleep(1)
+
+        GPIO.output(bit1, False)
+        GPIO.output(bit2, False)
+        GPIO.output(bit3, False) 
+        
+    else:
+        # Reset to 0
+        GPIO.output(bit1, False)
+        GPIO.output(bit2, False)
+        GPIO.output(bit3, False)
 
 app = QApplication(sys.argv)
-palette = QPalette()
-palette.setColor(QPalette.Window, QColor(53, 53, 53))
-palette.setColor(QPalette.WindowText, Qt.white)
-palette.setColor(QPalette.Base, QColor(25, 25, 25))
-palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
-palette.setColor(QPalette.ToolTipBase, Qt.black)
-palette.setColor(QPalette.ToolTipText, Qt.white)
-palette.setColor(QPalette.Text, Qt.white)
-palette.setColor(QPalette.Button, QColor(53, 53, 53))
-palette.setColor(QPalette.ButtonText, Qt.white)
-palette.setColor(QPalette.BrightText, Qt.red)
-palette.setColor(QPalette.Link, QColor(42, 130, 218))
-palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
-palette.setColor(QPalette.HighlightedText, Qt.black)
-app.setPalette(palette)
+#palette = QPalette()
+#palette.setColor(QPalette.Window, QColor(53, 53, 53))
+#palette.setColor(QPalette.WindowText, Qt.white)
+#palette.setColor(QPalette.Base, QColor(25, 25, 25))
+#palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
+#palette.setColor(QPalette.ToolTipBase, Qt.black)
+#palette.setColor(QPalette.ToolTipText, Qt.white)
+#palette.setColor(QPalette.Text, Qt.white)
+#palette.setColor(QPalette.Button, QColor(53, 53, 53))
+#palette.setColor(QPalette.ButtonText, Qt.white)
+#palette.setColor(QPalette.BrightText, Qt.red)
+#palette.setColor(QPalette.Link, QColor(42, 130, 218))
+#palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
+#palette.setColor(QPalette.HighlightedText, Qt.black)
+#app.setPalette(palette)
 
 w = MainWindow()
 w.setGeometry(100, 100, 1024, 600)
 w.show()
 app.exec()
+
+
+
+

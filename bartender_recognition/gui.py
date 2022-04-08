@@ -31,8 +31,11 @@ startheight = 300;
 startwidth = 500;
 
 class GSTThread(QThread):
-    changePixmap = pyqtSignal(QImage)
+    # changePixmap = pyqtSignal(QImage)
+    change_pixmap_signal = pyqtSignal(np.ndarray)
     vid_rec = video_recognition.VideoRecognition()
+
+    cap = cv2.VideoCapture(video_recognition.gstreamer_pipeline(flip_method=2),cv2.CAP_GSTREAMER)
 
     def __init__(self, Parent=None):
         super().__init__()
@@ -40,24 +43,20 @@ class GSTThread(QThread):
         self._preview_flag = False
 
         # start capture feed
-        cap = cv2.VideoCapture(video_recognition.gstreamer_pipeline(flip_method=2),cv2.CAP_GSTREAMER)
+        # print("Starting capture")
+        # # self.cap = 
         
-
     def video_preview(self):
         # flag preview thread as running
         self._preview_flag = True
 
+        print("Running video_preview")
+
         # capture from CSI camera
         while self._preview_flag:
-            ret, cv_img = cap.read()
+            ret, cv_img = self.cap.read()
             if ret:
-                rgbImage = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
-                h, w, ch = rgbImage.shape
-                bytesPerLine = ch * w
-                convertToQtFormat = QImage(rgbImage.data, w, h, bytesPerLine, QImage.Format_RGB888)
-                p = convertToQtFormat.scaled(640, 480, Qt.KeepAspectRatio)
-                self.changePixmap.emit(p)
-                # self.change_pixmap_signal.emit(cv_img)
+                self.change_pixmap_signal.emit(cv_img)
         # shut down capture system
         # cap.release()
 
@@ -80,23 +79,23 @@ class GSTThread(QThread):
     #     # shut down capture system
     #     cap.release()
 
-    def face_capture(self):
-        # vid_rec = video_recognition.VideoRecognition()
-        # capture from rpi camera
-        cap = cv2.VideoCapture(video_recognition.gstreamer_pipeline(flip_method=2),cv2.CAP_GSTREAMER)
+    # def face_capture(self):
+    #     # vid_rec = video_recognition.VideoRecognition()
+    #     # capture from rpi camera
+    #     cap = cv2.VideoCapture(video_recognition.gstreamer_pipeline(flip_method=2),cv2.CAP_GSTREAMER)
 
-        process_this_frame = True
+    #     process_this_frame = True
 
-        while self._run_flag:
-            ret, cv_img = cap.read()
-            if ret:
-                if process_this_frame:
-                    preview_frame = vid_rec.find_faces(cv_img)
-                process_this_frame = not process_this_frame
-                preview_frame = vid_rec.preview_frame(cv_img)
-                self.change_pixmap_signal.emit(cv_img)
-        # shut down capture system
-        cap.release()
+    #     while self._run_flag:
+    #         ret, cv_img = cap.read()
+    #         if ret:
+    #             if process_this_frame:
+    #                 preview_frame = vid_rec.find_faces(cv_img)
+    #             process_this_frame = not process_this_frame
+    #             preview_frame = vid_rec.preview_frame(cv_img)
+    #             self.change_pixmap_signal.emit(cv_img)
+    #     # shut down capture system
+    #     cap.release()
 
     def stop(self):
         self._preview_flag = False
@@ -106,7 +105,9 @@ class GSTThread(QThread):
         self._run_flag = False
         self.wait()
         # shut down capture system
-        cap.release()
+        self.cap.release()
+
+
 
 # class VideoThread(QThread):
 #     change_pixmap_signal = pyqtSignal(np.ndarray)
@@ -144,7 +145,7 @@ class MainWindow(QWidget):
         self.stackedLayout = QStackedLayout()
 
         # create video thread
-        self.thread = GSTThread()
+        # self.thread = GSTThread()
 
         # create and connect window navigation
         # approach window
@@ -155,13 +156,13 @@ class MainWindow(QWidget):
         scan_widget = ScanWidget(self)
         scan_widget.scan_button.clicked.connect(self.order_window)
         scan_widget.exit_button.clicked.connect(self.approach_window)
+        # scan_widget.video_thread.
         self.stackedLayout.addWidget(scan_widget)
         # order window
         order_widget = OrderWidget(self)
         self.stackedLayout.addWidget(order_widget)
 
         
-
         # make stacked layout central widget
         layout.addLayout(self.stackedLayout)
 
@@ -173,7 +174,7 @@ class MainWindow(QWidget):
     def scan_window(self):
         print("Opening scan menu")
         self.stackedLayout.setCurrentIndex(1)
-        self.video_preview()
+        # self.thread.video_preview()
         # self.layout.stackedLayout.scan_widget.video_feed(self)
 
     def order_window(self):
@@ -183,6 +184,9 @@ class MainWindow(QWidget):
     # def start_gst(self):
     #     print("Starting gst feed")
     #     self.thread.start_gst()
+
+    # def update_image(self):
+    #     self.
 
 
 class ApproachWidget(QWidget):
@@ -213,9 +217,9 @@ class ScanWidget(QWidget):
         # initialize video preview window
         self.video_feed = QLabel(w)
         self.video_feed.setGeometry(0,0,640,480)
-        # video_thread = CaptureVideoThread()
-        video_thread = self.parent().thread
-        video_thread.changePixmap.connect(self.setImage)
+        video_thread = GSTThread()
+        # video_thread = self.parent().thread
+        video_thread.change_pixmap_signal.connect(self.update_image)
 
         # scan button
         self.scan_button = QPushButton(w)
@@ -237,6 +241,8 @@ class ScanWidget(QWidget):
         # layout.addWidget(self.video_feed)
         self.setLayout(layout)
 
+        video_thread.video_preview()
+
     def video_feed(self):
         print("Called video_feed")
         # start video thread
@@ -254,9 +260,20 @@ class ScanWidget(QWidget):
         video_thread.stop()
         self.parent().approach_window()
 
-    @pyqtSlot(QImage)
-    def setImage(self, image):
-        self.video_feed.setPixmap(QPixmap.fromImage(image))
+    @pyqtSlot(np.ndarray)
+    def update_image(self, cv_img):
+        # self.video_feed.setPixmap(QPixmap.fromImage(image))
+        qt_img = self.convert_cv_qt(cv_img)
+        self.video_feed.setPixmap(qt_img)
+
+    def convert_cv_qt(self, cv_img):
+        """Convert from an opencv image to QPixmap"""
+        rgb_image = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
+        h, w, ch = rgb_image.shape
+        bytes_per_line = ch * w
+        convert_to_Qt_format = QtGui.QImage(rgb_image.data, w, h, bytes_per_line, QtGui.QImage.Format_RGB888)
+        p = convert_to_Qt_format.scaled(640, 480, Qt.KeepAspectRatio)
+        return QPixmap.fromImage(p)
 
 class OrderWidget(QWidget):
     def __init__(self, parent=None):

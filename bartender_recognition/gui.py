@@ -4,6 +4,18 @@ from random import randint
 import video_recognition
 import cv2
 import numpy as np
+import Jetson.GPIO as GPIO
+
+# Set up GPIO
+GPIO.setmode(GPIO.BOARD) # Other options are BCM, CVM, and TEGRA_SOC
+
+bit1 = 36
+bit2 = 38
+bit3 = 40
+
+GPIO.setup(bit1, GPIO.OUT)
+GPIO.setup(bit2, GPIO.OUT)
+GPIO.setup(bit3, GPIO.OUT)
 
 
 from PyQt5.QtWidgets import (
@@ -35,30 +47,29 @@ class GSTThread(QThread):
     change_pixmap_signal = pyqtSignal(np.ndarray)
     vid_rec = video_recognition.VideoRecognition()
 
-    cap = cv2.VideoCapture(video_recognition.gstreamer_pipeline(flip_method=2),cv2.CAP_GSTREAMER)
-
     def __init__(self, Parent=None):
         super().__init__()
         self._run_flag = True
-        self._preview_flag = False
+        self._preview_flag = True
 
         # start capture feed
         # print("Starting capture")
-        # # self.cap = 
+        # self.cap = 
         
     def video_preview(self):
         # flag preview thread as running
-        self._preview_flag = True
+        # self._preview_flag = True
 
         print("Running video_preview")
+        cap = cv2.VideoCapture(video_recognition.gstreamer_pipeline(flip_method=2),cv2.CAP_GSTREAMER)
 
         # capture from CSI camera
         while self._preview_flag:
-            ret, cv_img = self.cap.read()
+            ret, cv_img = cap.read()
             if ret:
                 self.change_pixmap_signal.emit(cv_img)
         # shut down capture system
-        # cap.release()
+        cap.release()
 
     # def start_v4l(self):
     #     # flag thread as running
@@ -99,13 +110,15 @@ class GSTThread(QThread):
 
     def stop(self):
         self._preview_flag = False
+        self.wait()
 
     def shutdown(self):
         """Sets run flag to False and waits for thread to finish"""
         self._run_flag = False
+        self._preview_flag = False
         self.wait()
         # shut down capture system
-        self.cap.release()
+        # self.cap.release()
 
 
 
@@ -144,8 +157,10 @@ class MainWindow(QWidget):
         # create stacked layout
         self.stackedLayout = QStackedLayout()
 
-        # create video thread
-        # self.thread = GSTThread()
+        # create video thread in top-level context
+        # self.video_thread = GSTThread()
+        # connect to image update
+        # video_thread.change_pixmap_signal.connect(self.update_image)
 
         # create and connect window navigation
         # approach window
@@ -156,6 +171,7 @@ class MainWindow(QWidget):
         scan_widget = ScanWidget(self)
         scan_widget.scan_button.clicked.connect(self.order_window)
         scan_widget.exit_button.clicked.connect(self.approach_window)
+        # scan_widget.
         # scan_widget.video_thread.
         self.stackedLayout.addWidget(scan_widget)
         # order window
@@ -166,6 +182,9 @@ class MainWindow(QWidget):
         # make stacked layout central widget
         layout.addLayout(self.stackedLayout)
 
+        # start video thread
+        # self.video_thread.video_preview()
+
 
     def approach_window(self):
         print("Opening approach menu")
@@ -174,7 +193,8 @@ class MainWindow(QWidget):
     def scan_window(self):
         print("Opening scan menu")
         self.stackedLayout.setCurrentIndex(1)
-        # self.thread.video_preview()
+        # time.sleep(3)
+        self.video_thread.video_preview()
         # self.layout.stackedLayout.scan_widget.video_feed(self)
 
     def order_window(self):
@@ -187,6 +207,25 @@ class MainWindow(QWidget):
 
     # def update_image(self):
     #     self.
+
+    def closeEvent(self, event):
+        self.video_thread.shutdown()
+        event.accept()
+
+    @pyqtSlot(np.ndarray)
+    def update_image(self, cv_img):
+        # self.video_feed.setPixmap(QPixmap.fromImage(image))
+        qt_img = self.convert_cv_qt(cv_img)
+        self.video_feed.setPixmap(qt_img)
+
+    def convert_cv_qt(self, cv_img):
+        """Convert from an opencv image to QPixmap"""
+        rgb_image = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
+        h, w, ch = rgb_image.shape
+        bytes_per_line = ch * w
+        convert_to_Qt_format = QtGui.QImage(rgb_image.data, w, h, bytes_per_line, QtGui.QImage.Format_RGB888)
+        p = convert_to_Qt_format.scaled(640, 480, Qt.KeepAspectRatio)
+        return QPixmap.fromImage(p)
 
 
 class ApproachWidget(QWidget):
@@ -217,9 +256,8 @@ class ScanWidget(QWidget):
         # initialize video preview window
         self.video_feed = QLabel(w)
         self.video_feed.setGeometry(0,0,640,480)
-        video_thread = GSTThread()
-        # video_thread = self.parent().thread
-        video_thread.change_pixmap_signal.connect(self.update_image)
+        # video_thread = self.parent().video_thread
+        # self.parent().video_thread.change_pixmap_signal.connect(self.parent().update_image)
 
         # scan button
         self.scan_button = QPushButton(w)
@@ -241,16 +279,24 @@ class ScanWidget(QWidget):
         # layout.addWidget(self.video_feed)
         self.setLayout(layout)
 
+        # create video thread
+        video_thread = GSTThread()
+        # connect signal to image update
+        video_thread.change_pixmap_signal.connect(self.update_image)
+        # start video signal
         video_thread.video_preview()
+        print("Video preview started")
 
     def video_feed(self):
         print("Called video_feed")
         # start video thread
+        # self.parent().video_thread.video_preview()
         video_thread.video_preview()
 
     def scan_function(self):
         print("Scan ID clicked")
         print("Stopping video preview")
+        # self.parent().video_thread.stop()
         video_thread.stop()
         self.parent().order_window()
 
@@ -274,6 +320,8 @@ class ScanWidget(QWidget):
         convert_to_Qt_format = QtGui.QImage(rgb_image.data, w, h, bytes_per_line, QtGui.QImage.Format_RGB888)
         p = convert_to_Qt_format.scaled(640, 480, Qt.KeepAspectRatio)
         return QPixmap.fromImage(p)
+
+    
 
 class OrderWidget(QWidget):
     def __init__(self, parent=None):
@@ -347,51 +395,140 @@ class OrderWidget(QWidget):
 
     def button1_clicked(self):
         print("Button 1 clicked")
+        pumpCall(1)
         # return to approach menu
         time.sleep(1)
         self.parent().approach_window()
 
     def button2_clicked(self):
         print("Button 2 clicked")
+        pumpCall(2)
         # return to approach menu
         time.sleep(1)
         self.parent().approach_window()
 
     def button3_clicked(self):
         print("Button 3 clicked")
+        pumpCall(3)
         # return to approach menu
         time.sleep(1)
         self.parent().approach_window()
 
     def button4_clicked(self):
         print("Button 4 clicked")
+        pumpCall(4)
         # return to approach menu
         time.sleep(1)
         self.parent().approach_window()
 
     def button5_clicked(self):
         print("Button 5 clicked")
+        pumpCall(5)
         # return to approach menu
         time.sleep(1)
         self.parent().approach_window()
 
     def button6_clicked(self):
         print("Button 6 clicked")
+        pumpCall(6)
         # return to approach menu
         time.sleep(1)
         self.parent().approach_window()
 
     def button7_clicked(self):
         print("Button 7 clicked")
+        pumpCall(7)
         # return to approach menu
         time.sleep(1)
         self.parent().approach_window()
 
     def button8_clicked(self):
         print("Button 8 clicked")
+        pumpCall(8)
         # return to approach menu
         time.sleep(1)
         self.parent().approach_window()
+
+# Function for pump call
+def pumpCall(flag):
+    if flag == 1:
+      # Write a binary 1
+        GPIO.output(bit1, False)
+        GPIO.output(bit2, False)
+        GPIO.output(bit3, True)
+
+        time.sleep(1)
+
+        GPIO.output(bit1, False)
+        GPIO.output(bit2, False)
+        GPIO.output(bit3, False)
+        
+    elif flag == 2:
+        # Write a binary 2
+        GPIO.output(bit1, False)
+        GPIO.output(bit2, True)
+        GPIO.output(bit3, False)
+
+        time.sleep(1)
+
+        GPIO.output(bit1, False)
+        GPIO.output(bit2, False)
+        GPIO.output(bit3, False)
+        
+    elif flag == 3:
+        # Write a binary 3
+        GPIO.output(bit1, False)
+        GPIO.output(bit2, True)
+        GPIO.output(bit3, True)
+
+        time.sleep(1)
+
+        GPIO.output(bit1, False)
+        GPIO.output(bit2, False)
+        GPIO.output(bit3, False)
+        
+    elif flag == 4:
+        # Write a binary 4
+        GPIO.output(bit1, True)
+        GPIO.output(bit2, False)
+        GPIO.output(bit3, False)
+
+        time.sleep(1)
+
+        GPIO.output(bit1, False)
+        GPIO.output(bit2, False)
+        GPIO.output(bit3, False)
+        
+    elif flag == 5:
+        # Write a binary 5
+        GPIO.output(bit1, True)
+        GPIO.output(bit2, False)
+        GPIO.output(bit3, True)
+
+        time.sleep(1)
+
+        GPIO.output(bit1, False)
+        GPIO.output(bit2, False)
+        GPIO.output(bit3, False)
+        
+        
+    elif flag == 6:
+        # Write a binary 6
+        GPIO.output(bit1, True)
+        GPIO.output(bit2, True)
+        GPIO.output(bit3, False) 
+
+        time.sleep(1)
+
+        GPIO.output(bit1, False)
+        GPIO.output(bit2, False)
+        GPIO.output(bit3, False) 
+        
+    else:
+        # Reset to 0
+        GPIO.output(bit1, False)
+        GPIO.output(bit2, False)
+        GPIO.output(bit3, False)
 
 
 def make_gui():

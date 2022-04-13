@@ -194,7 +194,7 @@ class MainWindow(QWidget):
         print("Opening scan menu")
         self.stackedLayout.setCurrentIndex(1)
         # time.sleep(3)
-        self.video_thread.video_preview()
+        # self.video_thread.video_preview()
         # self.layout.stackedLayout.scan_widget.video_feed(self)
 
     def order_window(self):
@@ -284,7 +284,7 @@ class ScanWidget(QWidget):
         # connect signal to image update
         video_thread.change_pixmap_signal.connect(self.update_image)
         # start video signal
-        video_thread.video_preview()
+        # video_thread.video_preview()
         print("Video preview started")
 
     def video_feed(self):

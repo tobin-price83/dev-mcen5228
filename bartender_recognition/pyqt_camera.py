@@ -6,6 +6,33 @@ import cv2
 from PyQt5.QtCore import pyqtSignal, pyqtSlot, Qt, QThread
 import numpy as np
 
+def gstreamer_pipeline(
+    sensor_id=0,
+    capture_width=1920,
+    capture_height=1080,
+    display_width=640,
+    display_height=360,
+    framerate=60,
+    flip_method=0,
+):
+    return (
+    "nvarguscamerasrc sensor-id=%d !"
+    "video/x-raw(memory:NVMM), width=(int)%d, height=(int)%d, framerate=(fraction)%d/1 ! "
+    "nvvidconv flip-method=%d ! "
+    "video/x-raw, width=(int)%d, height=(int)%d, format=(string)BGRx ! "
+    "videoconvert ! "
+    "video/x-raw, format=(string)BGR ! appsink"
+    % (
+    sensor_id,
+    capture_width,
+    capture_height,
+    framerate,
+    flip_method,
+    display_width,
+    display_height,
+    )
+    )
+
 
 class VideoThread(QThread):
     change_pixmap_signal = pyqtSignal(np.ndarray)
@@ -16,7 +43,7 @@ class VideoThread(QThread):
 
     def run(self):
         # capture from web cam
-        cap = cv2.VideoCapture(0)
+        cap = cv2.VideoCapture(gstreamer_pipeline(flip_method=2),cv2.CAP_GSTREAMER)
         while self._run_flag:
             ret, cv_img = cap.read()
             if ret:

@@ -333,13 +333,16 @@ def gstreamer_pipeline(
 	display_width=640,
 	display_height=360,
 	framerate=60,
+	frameskip=1,
 	flip_method=0,
 ):
 	return (
 	"nvarguscamerasrc sensor-id=%d !"
-	"video/x-raw(memory:NVMM), width=(int)%d, height=(int)%d, framerate=(fraction)%d/1 ! "
+	"video/x-raw(memory:NVMM), width=(int)%d, height=(int)%d, framerate=(fraction)%d/%d ! "
 	"nvvidconv flip-method=%d ! "
 	"video/x-raw, width=(int)%d, height=(int)%d, format=(string)BGRx ! "
+	# "videorate ! "
+	# "video/x-raw, framerate=(fraction)%d/1 ! "
 	"videoconvert ! "
 	"video/x-raw, format=(string)BGR ! appsink"
 	% (
@@ -347,9 +350,11 @@ def gstreamer_pipeline(
 	capture_width,
 	capture_height,
 	framerate,
+	frameskip,
 	flip_method,
 	display_width,
 	display_height,
+	# videorate,
 	)
 	)
 
@@ -375,3 +380,4 @@ def v4l_pipeline(
             display_height,
         )
 	)
+

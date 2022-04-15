@@ -6,6 +6,7 @@
 # Drivers for the camera and OpenCV are included in the base image
 
 import cv2
+import video_recognition
 
 # gstreamer_pipeline returns a GStreamer pipeline for capturing from the CSI camera
 # Defaults to 1280x720 @ 60fps
@@ -16,8 +17,8 @@ import cv2
 def gstreamer_pipeline(
     capture_width=1920,
     capture_height=1080,
-    display_width=1280,
-    display_height=720,
+    display_width=640,
+    display_height=360,
     framerate=60,
     flip_method=0,
 ):
@@ -43,8 +44,11 @@ def gstreamer_pipeline(
 
 def show_camera():
     # To flip the image, modify the flip_method parameter (0 and 2 are the most common)
-    print(gstreamer_pipeline(flip_method=0))
-    cap = cv2.VideoCapture(gstreamer_pipeline(flip_method=0), cv2.CAP_GSTREAMER)
+    print(video_recognition.gstreamer_pipeline(flip_method=0,frameskip=30))
+    cap = cv2.VideoCapture(video_recognition.gstreamer_pipeline(flip_method=0,frameskip=30), cv2.CAP_GSTREAMER)
+
+    # print(gstreamer_pipeline(flip_method=0))
+    # cap = cv2.VideoCapture(gstreamer_pipeline(flip_method=0), cv2.CAP_GSTREAMER)
     if cap.isOpened():
         window_handle = cv2.namedWindow("CSI Camera", cv2.WINDOW_AUTOSIZE)
         # Window

@@ -3,11 +3,12 @@ import time
 
 from random import randint
 import video_recognition
+import video_pipeline
 import cv2
 import numpy as np
 import Jetson.GPIO as GPIO
 
-from gi.repository import GObject, Gst, GstVideo  
+# from gi.repository import GObject, Gst, GstVideo  
 
 # Set up GPIO
 GPIO.setmode(GPIO.BOARD) # Other options are BCM, CVM, and TEGRA_SOC
@@ -57,13 +58,21 @@ class GSTThread(QThread):
 
         # placeholder pixmap
         p = QPixmap(640,360)
-        p.fill(QColor('darkGray'))
+        p.fill(QColor('darkRed'))
         self.ImageUpdate.emit(p)
+        
+    def video_preview(self):
+        # flag preview thread as running
+        self._preview_flag = True
+
+        print("Running video_preview")
+        # cap = cv2.VideoCapture(video_recognition.gstreamer_pipeline(flip_method=2),cv2.CAP_GSTREAMER)
 
         # start capture feed
         print("Starting capture")
-        print(video_recognition.gstreamer_pipeline(flip_method=2,frameskip=30))
-        self.cap = cv2.VideoCapture(video_recognition.gstreamer_pipeline(flip_method=2,frameskip=30),cv2.CAP_GSTREAMER)
+        gst_string = video_pipeline.gstreamer_pipeline(flip_method=2,frameskip=15)
+        print(gst_string)
+        self.cap = cv2.VideoCapture(gst_string,cv2.CAP_GSTREAMER)
 
         # read frame buffer while idle, but don't display
         while self._run_flag:
@@ -83,15 +92,10 @@ class GSTThread(QThread):
                 # self.ImageUpdate.emit(Pic)
             elif self._preview_flag:
                 p = QPixmap(640,360)
-                p.fill(QColor('darkGray'))
+                p.fill(QColor('darkRed'))
                 self.ImageUpdate.emit(p)
-        
-    def video_preview(self):
-        # flag preview thread as running
-        self._preview_flag = True
 
-        print("Running video_preview")
-        # cap = cv2.VideoCapture(video_recognition.gstreamer_pipeline(flip_method=2),cv2.CAP_GSTREAMER)
+        self.cap.release()
 
         # capture from CSI camera
         # while self._preview_flag:
@@ -124,7 +128,7 @@ class GSTThread(QThread):
         """Sets run flag to False and waits for thread to finish"""
         self._run_flag = False
         self._preview_flag = False
-        self.cap.release()
+        # self.cap.release()
         self.wait()
         self.quit()
         # shut down capture system
@@ -180,8 +184,10 @@ class MainWindow(QWidget):
 
     def scan_window(self):
         print("Opening scan menu")
-        self.video_thread.video_preview()
+        
         self.stackedLayout.setCurrentIndex(1)
+        time.sleep(3)
+        self.video_thread.video_preview()
         # time.sleep(3)
         # self.video_thread.video_preview()
         # self.layout.stackedLayout.scan_widget.video_feed(self)
@@ -237,9 +243,15 @@ class ScanWidget(QWidget):
         layout = QVBoxLayout()
         w = QWidget()
         
+        # placeholder pixmap
+        p = QPixmap(640,360)
+        p.fill(QColor('darkRed'))
+        # self.ImageUpdate.emit(p)
+
         # initialize video preview window
         self.video_feed = QLabel(w)
         self.video_feed.setGeometry(0,0,640,360)
+        self.video_feed.setPixmap(p)
 
         # scan button
         self.scan_button = QPushButton(w)
@@ -258,7 +270,7 @@ class ScanWidget(QWidget):
         self.exit_button.clicked.connect(self.exit_function)
 
         layout.addWidget(w)
-        layout.addWidget(self.video_feed)
+        # layout.addWidget(self.video_feed)
         self.setLayout(layout)
 
         # create video thread

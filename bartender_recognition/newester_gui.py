@@ -19,13 +19,14 @@ from PyQt5.QtWidgets import (
     QMainWindow,
     QPushButton,
     QVBoxLayout,
+    QHBoxLayout,
     QWidget,
     QStackedWidget,
     QStackedLayout,
 )
 from PyQt5.QtGui import QIcon, QPalette, QColor, QPixmap, QFont, QImage
 from PyQt5.QtCore import pyqtSignal, pyqtSlot, QThread, Qt
-from PyQt5 import QtCore, QtGui
+from PyQt5 import QtCore, QtGui, QtWidgets
 
 #### GLOBAL VARIABLES ####----------------------------------------------------------------------
 known_face_encodings = []
@@ -96,6 +97,7 @@ def capture_faces(frame, face_locations, face_encodings, margin=0):
     # loop through and save faces in photo
     print("Number of faces:", len(face_locations))
     index = 0
+    indicies = [];
     for (top, right, bottom, left), face_encoding in zip(face_locations, face_encodings):
         # resize crop bounds
         top *= 2
@@ -144,7 +146,7 @@ def capture_mode(margin=0):
     if video_capture.isOpened():
         try:
             print("Window Handle");
-            window_handle = cv2.namedWindow(window_title, cv2.WINDOW_AUTOSIZE)
+            # window_handle = cv2.namedWindow(window_title, cv2.WINDOW_AUTOSIZE)
             # Identify faces in photo for capture
             face_locations = []
             process_this_frame = True
@@ -181,39 +183,50 @@ def capture_mode(margin=0):
                 process_this_frame = not process_this_frame
 
                 # Display live capture preview
-                for (top, right, bottom, left), label in zip(face_locations, face_names):
-                    # print("Found face!")
-                    # Scale back up face locations since the frame we detected in was scaled to 1/4 size
-                    top *= 2
-                    right *= 2
-                    bottom *= 2
-                    left *= 2
+                # for (top, right, bottom, left), label in zip(face_locations, face_names):
+                #     # print("Found face!")
+                #     # Scale back up face locations since the frame we detected in was scaled to 1/4 size
+                #     top *= 2
+                #     right *= 2
+                #     bottom *= 2
+                #     left *= 2
 
-                    # Draw a box around the face
-                    cv2.rectangle(frame, (left, top),
-                                  (right, bottom), (0, 0, 255), 2)
+                #     # Draw a box around the face
+                #     cv2.rectangle(frame, (left, top),
+                #                   (right, bottom), (0, 0, 255), 2)
 
-                    # Draw a label with a name below the face
-                    cv2.rectangle(frame, (left, bottom - 35),
-                                  (right, bottom), (0, 0, 255), cv2.FILLED)
-                    font = cv2.FONT_HERSHEY_DUPLEX
-                    cv2.putText(frame, label, (left + 6, bottom - 6),
-                                font, 1.0, (255, 255, 255), 1)
+                #     # Draw a label with a name below the face
+                #     cv2.rectangle(frame, (left, bottom - 35),
+                #                   (right, bottom), (0, 0, 255), cv2.FILLED)
+                #     font = cv2.FONT_HERSHEY_DUPLEX
+                #     cv2.putText(frame, label, (left + 6, bottom - 6),
+                #                 font, 1.0, (255, 255, 255), 1)
 
-                # Display the resulting image
-                if cv2.getWindowProperty(window_title, cv2.WND_PROP_AUTOSIZE) >= 0:
-                    cv2.imshow(window_title, frame)
-                else:
-                    # quit loop if window is forcibly closed
-                    break
+                # # Display the resulting image
+                # if cv2.getWindowProperty(window_title, cv2.WND_PROP_AUTOSIZE) >= 0:
+                #     cv2.imshow(window_title, frame)
+                # else:
+                #     # quit loop if window is forcibly closed
+                #     break
 
                 keyCode = cv2.waitKey(10) & 0xFF
                 # Hit 'space' on the keyboard to capture photos!
-                if keyCode == 32:
-                    print("capturing photo...")
-                    capture_faces(frame, face_locations,
-                                  face_encodings, margin)
+                # if keyCode == 32:
+                #     print("capturing photo...")
+                #     capture_faces(frame, face_locations,
+                #                   face_encodings, margin)
+                #     break
+                print("capturing photo...")
+                capture_faces(frame, face_locations, face_encodings, margin)
+                if(len(face_locations) >= 1):
+                    print("Face Found!");
+                    print("Closing live_video...")
+                    video_capture.release()
+                    cv2.destroyAllWindows()
+                    return
                     break
+                else:
+                    print("No Face Detected...")
 
                 # Hit 'q' on the keyboard to quit!
                 if keyCode == ord('q'):
@@ -228,8 +241,7 @@ def capture_mode(margin=0):
     else:
         print("Error: Unable to open camera")
 
-
-def live_video():
+def live_video(self):
 
     print("starting live_video")
     window_title = "Live Video"
@@ -247,21 +259,31 @@ def live_video():
 
     if video_capture.isOpened():
         try:
-            window_handle = cv2.namedWindow(window_title, cv2.WINDOW_AUTOSIZE)
+            print("Error heeerrrrreeee")
+            # window_handle = cv2.namedWindow(window_title, cv2.WINDOW_AUTOSIZE)
+
             # Identify faces in photo for capture
             face_locations = []
             process_this_frame = True
             print("Starting loop...")
             while True:
                 # grab frame of video
+                print("Getting Frame")
                 ret, frame = video_capture.read()
 
+                # print("Showing Image")
+
+                # cv2.imshow('image', frame);
+                
                 # Resize frame of video to 1/2 size for faster face recognition processing
+                print('Resizing Frame...')
                 small_frame = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
 
                 # Convert the image from BGR color (which OpenCV uses) to RGB color (which face_recognition uses)
+                print("Converting BGR into RGB...")
                 rgb_small_frame = small_frame[:, :, ::-1]
 
+                print("Frame Processed Successfully!");
                 if process_this_frame:
                     # Find all the faces and face encodings in the current frame of video
                     face_locations = face_recognition.face_locations(
@@ -286,46 +308,29 @@ def live_video():
 
                 process_this_frame = not process_this_frame
 
-                # Display live capture preview
-                for (top, right, bottom, left), label in zip(face_locations, face_names):
-                    # print("Found face!")
-                    # Scale back up face locations since the frame we detected in was scaled to 1/4 size
-                    top *= 2
-                    right *= 2
-                    bottom *= 2
-                    left *= 2
-
-                    # Draw a box around the face
-                    cv2.rectangle(frame, (left, top),
-                                  (right, bottom), (0, 0, 255), 2)
-
-                    # Draw a label with a name below the face
-                    cv2.rectangle(frame, (left, bottom - 35),
-                                  (right, bottom), (0, 0, 255), cv2.FILLED)
-                    font = cv2.FONT_HERSHEY_DUPLEX
-                    cv2.putText(frame, label, (left + 6, bottom - 6),
-                                font, 1.0, (255, 255, 255), 1)
-
-                # Display the resulting image
-                if cv2.getWindowProperty(window_title, cv2.WND_PROP_AUTOSIZE) >= 0:
-                    cv2.imshow(window_title, frame)
+                print("capturing photo...")
+                margin = 0
+                capture_faces(frame, face_locations, face_encodings, margin)
+                if(len(face_locations) >= 1):
+                    for i in face_encoding:
+                        print("Looking Up Face")
+                        print(lookup_known_face(i));
+                        print("-")
+                        print(face_encodings);
+                        print("Face Found! Face 1! Moving to Order Menu");
+                        print("Closing live_video...")
+                        video_capture.release()
+                        cv2.destroyAllWindows()
+                    return
+                    break
                 else:
-                    # quit loop if window is forcibly closed
-                    break_cond = True
-                    break
-
-                keyCode = cv2.waitKey(10) & 0xFF
-                # Hit 'space' on the keyboard to switch to capture mode!
-                if keyCode == 32:
-                    print("switching to capture mode...")
-                    # capture_faces(frame,face_locations,face_encodings,margin)
-                    break
+                    print("No Face Detected...")
 
                 # Hit 'q' on the keyboard to quit!
-                if keyCode == ord('q'):
-                    print("exiting loop...")
-                    break_cond = True
-                    break
+                # if keyCode == ord('q'):
+                #     print("exiting loop...")
+                #     break_cond = True
+                #     break
         finally:
             print("Closing live_video...")
             video_capture.release()
@@ -410,7 +415,7 @@ class ApproachWidget(QWidget):
 class ScanWidget(QWidget):
     def __init__(self, parent=None):
         super(ScanWidget, self).__init__(parent)
-        layout = QVBoxLayout()
+        self.layout = QVBoxLayout()
         w = QWidget()
         
         # scan button
@@ -418,7 +423,8 @@ class ScanWidget(QWidget):
         self.scan_button.setFont(QFont('Arial',16))
         self.scan_button.setText("Scan ID")
         self.scan_button.setGeometry(0,0,900,40)
-        self.scan_button.move(62, 4*vsize + 2*bsize + buf - 72)
+        # self.scan_button.move(62, 4*vsize + 2*bsize + buf - 72)
+        self.scan_button.move(62, 20)
         self.scan_button.clicked.connect(self.scan_function)
 
         # exit button
@@ -426,21 +432,63 @@ class ScanWidget(QWidget):
         self.exit_button.setFont(QFont('Arial',16))
         self.exit_button.setText("Exit")
         self.exit_button.setGeometry(0,0,900,40)
-        self.exit_button.move(62, 4*vsize + 2*bsize + buf-20)
+        self.exit_button.move(62, 70)
+        # self.exit_button.move(62, 0 + buf - 20)
         self.exit_button.clicked.connect(self.exit_function)
 
-        layout.addWidget(w)
-        self.setLayout(layout)
+        self.layout_hor = QHBoxLayout()
+
+        self.label1 = QLabel(self)
+        pixmap = QPixmap('Menu v1.png')
+        # smaller_pixmap = pixmap.scaled(1000, 400, Qt.KeepAspectRatio, Qt.FastTransformation)
+        self.label1.setPixmap(pixmap)
+        self.layout_hor.addWidget(self.label1)
+        self.label1.move(100, 100)
+
+        self.label2 = QLabel(self)
+        pixmap = QPixmap('Menu w1.png')
+        # smaller_pixmap = pixmap.scaled(400, 400, Qt.KeepAspectRatio, Qt.FastTransformation)
+        self.label2.setPixmap(pixmap)
+        self.layout_hor.addWidget(self.label2)
+        self.label2.move(200, 100)
+
+        self.layout.addLayout(self.layout_hor)
+        # label1.setGeometry(100, 200, 300, 80)
+        # self.resize(pixmap.width(), 0.5*pixmap.height())
+        
+
+        self.layout.addWidget(w)
+        self.setLayout(self.layout)
 
     def scan_function(self):
         print("Scan ID clicked")
         print("Capture Mode")
-        # capture_mode()
-        break_cond = live_video()
+        capture_mode()
+        # time.sleep(1)
+        pixmap = QPixmap('Menu v2.png')
+        # self.label1.move(100, 100)
+        self.label1.setPixmap(pixmap)
+        QApplication.processEvents()
+        # time.sleep(0.5)
+
+        
+        pixmap = QPixmap('Menu w2.png')
+        # self.label1.move(100, 100)
+        self.label2.setPixmap(pixmap)
+        QApplication.processEvents()
+        time.sleep(3)
+
+        break_cond = live_video(self)
+
+        pixmap = QPixmap('Menu w3.png')
+        # self.label1.move(100, 100)
+        self.label2.setPixmap(pixmap)
+        QApplication.processEvents()
+        time.sleep(3)
 
         # self.parent().video_thread.stop()
         # self.parent().video_thread.stop()
-        self.parent().order_window()
+        # self.parent().order_window()
 
     def exit_function(self):
         print("Exit button clicked")

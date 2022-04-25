@@ -12,7 +12,6 @@ import platform
 import numpy as np
 import cv2
 import face_recognition
-from scipy import False_
 import video_pipeline
 from PyQt5.QtWidgets import (
     QApplication,
@@ -28,15 +27,11 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QIcon, QPalette, QColor, QPixmap, QFont, QImage
 from PyQt5.QtCore import pyqtSignal, pyqtSlot, QThread, Qt
 from PyQt5 import QtCore, QtGui, QtWidgets
-from datetime import datetime
-
-# GLOBAL VARIABLES ####----------------------------------------------------------------------
-known_face_encodings = []
-known_face_metadata = []
 
 # Set up GPIO
 GPIO.setmode(GPIO.BOARD)  # Other options are BCM, CVM, and TEGRA_SOC
 
+# GLOBAL VARIABLES ---------------------------------------------------
 bit1 = 36
 bit2 = 38
 bit3 = 40
@@ -67,6 +62,10 @@ def main():
 
 # FACE RECOGNITION ####----------------------------------------------------------------------
 
+# class FacialRecognition(QThread):
+    
+known_face_encodings = []
+known_face_metadata = []
 
 def running_on_jetson_nano():
     return platform.machine() == "aarch64"
@@ -183,15 +182,6 @@ def capture_mode(margin=0):
                 print("Capturing Images...")
                 ret, frame = video_capture.read()
 
-                # timer = time.time()
-                # frame = 0
-                # while np.sum(frame) == 0:
-                #     print("Pulling Camera Frame...")
-                #     ret, frame = video_capture.read()
-                #     if time.time() - timer < 10:
-                #         print("Camera Failed To Open...")
-                #         return False;
-
                 # Resize frame of video to 1/2 size for faster face recognition processing
                 print("Resizing Image...")
                 small_frame = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
@@ -259,7 +249,7 @@ def capture_mode(margin=0):
                     print("Closing live_video...")
                     video_capture.release()
                     cv2.destroyAllWindows()
-                    return
+                    return face_encodings
                     break
                 else:
                     print("No Face Detected...")
@@ -276,7 +266,6 @@ def capture_mode(margin=0):
             cv2.destroyAllWindows()
     else:
         print("Error: Unable to open camera")
-        return False
 
 
 def live_video(self):
@@ -298,7 +287,7 @@ def live_video(self):
 
     if video_capture.isOpened():
         try:
-            # print("Error heeerrrrreeee")
+            print("Error heeerrrrreeee")
             # window_handle = cv2.namedWindow(window_title, cv2.WINDOW_AUTOSIZE)
 
             # Identify faces in photo for capture
@@ -349,9 +338,9 @@ def live_video(self):
 
                 print("capturing photo...")
                 margin = 0
-                # capture_faces(frame, face_locations, face_encodings, margin)
+                capture_faces(frame, face_locations, face_encodings, margin)
                 if(len(face_locations) >= 1):
-                    for i in face_encodings:
+                    for i in face_encoding:
                         print("Looking Up Face")
                         print(lookup_known_face(i))
                         print("-")
@@ -360,7 +349,7 @@ def live_video(self):
                         print("Closing live_video...")
                         video_capture.release()
                         cv2.destroyAllWindows()
-                    return i
+                    return True
                     break
                 else:
                     print("No Face Detected...")
@@ -398,16 +387,22 @@ class MainWindow(QWidget):
         # create and connect window navigation
         # approach window
         approach_widget = ApproachWidget(self)
-        approach_widget.button.clicked.connect(self.scan_window)
+        # approach_widget.button.clicked.connect(self.scan_window)
         self.stackedLayout.addWidget(approach_widget)
         # scan window
         scan_widget = ScanWidget(self)
         # scan_widget.scan_button.clicked.connect(self.order_window)
-        scan_widget.exit_button.clicked.connect(self.approach_window)
+        # scan_widget.exit_button.clicked.connect(self.approach_window)
         self.stackedLayout.addWidget(scan_widget)
         # order window
         order_widget = OrderWidget(self)
         self.stackedLayout.addWidget(order_widget)
+        # verify cup window
+        verify_widget = PlaceCupWidget(self)
+        self.stackedLayout.addWidget(verify_widget)
+        # remove cup window
+        remove_widget = RemoveCupWidget(self)
+        self.stackedLayout.addWidget(remove_widget)
 
         # make stacked layout central widget
         layout.addLayout(self.stackedLayout)
@@ -427,6 +422,23 @@ class MainWindow(QWidget):
     def order_window(self):
         print("Opening order menu")
         self.stackedLayout.setCurrentIndex(2)
+
+    def verify_cup(self):
+        print("Verifying cup placement")
+        self.stackedLayout.setCurrentIndex(3)
+        # QApplication.processEvents()
+        # loop until cup placement verified
+        time.sleep(5) # placeholder
+        self.order_window()
+
+
+    def remove_cup(self):
+        print("Remove cup prompt")
+        self.stackedLayout.setCurrentIndex(4)
+        # loop until cup removal is verified
+        time.sleep(5) # placeholder
+        self.approach_window()
+
 
     def closeEvent(self, event):
         # self.video_thread.shutdown()
@@ -502,53 +514,39 @@ class ScanWidget(QWidget):
     def scan_function(self):
         print("Scan ID clicked")
         print("Capture Mode")
-        ret = capture_mode()
-        print(ret);
-        if ret == False:
-            print("Changing to Approach Window")
-            pixmap = QPixmap('Menu v3.png')
-            self.label1.setPixmap(pixmap)
+        capture_mode()
+
+        pixmap = QPixmap('Menu v2.png')
+        self.label1.setPixmap(pixmap)
+        QApplication.processEvents()
+        time.sleep(1)
+
+        pixmap = QPixmap('Menu w2.png')
+        self.label2.setPixmap(pixmap)
+        QApplication.processEvents()
+        time.sleep(1)
+
+        # correct_face = live_video(self)
+        # correct_face = False
+        if binary_known_face(self) == True:
+            pixmap = QPixmap('Menu w3.png')
+            self.label2.setPixmap(pixmap)
             QApplication.processEvents()
-            time.sleep(5)
-            self.parent().approach_window()
+            time.sleep(1)
+            self.parent().verify_cup()
+            # self.parent().order_window()
         else:
-            pixmap = QPixmap('Menu v2.png')
-            self.label1.setPixmap(pixmap)
-            QApplication.processEvents()
-            time.sleep(1)
-
-            pixmap = QPixmap('Menu w2.png')
+            pixmap = QPixmap('Menu w4.png')
             self.label2.setPixmap(pixmap)
             QApplication.processEvents()
             time.sleep(1)
+            self.parent().approach_window()
 
-            face = live_video(self)
-            # correct_face = False
-            print("FACE:")
-            print(face);
-            print("FACE #1:")
-            print(known_face_encodings)
-            print("------------")
-            if binary_known_face(face) == True:
-                print("Known Face Found. ID Approved");
-                pixmap = QPixmap('Menu w3.png')
-                self.label2.setPixmap(pixmap)
-                QApplication.processEvents()
-                time.sleep(1)
-                self.parent().order_window()
-            else:
-                print("No Known Faces Found. ID Rejected.")
-                pixmap = QPixmap('Menu w4.png')
-                self.label2.setPixmap(pixmap)
-                QApplication.processEvents()
-                time.sleep(1)
-                self.parent().approach_window()
-
-            #Reset Window For Next User
-            pixmap = QPixmap('Menu v1.png')
-            self.label1.setPixmap(pixmap)
-            pixmap = QPixmap('Menu w1.png')
-            self.label2.setPixmap(pixmap)
+        #Reset Window For Next User
+        pixmap = QPixmap('Menu v1.png')
+        self.label1.setPixmap(pixmap)
+        pixmap = QPixmap('Menu w1.png')
+        self.label2.setPixmap(pixmap)
 
     def exit_function(self):
         print("Exit button clicked")
@@ -629,56 +627,96 @@ class OrderWidget(QWidget):
         pumpCall(1)
         # return to approach menu
         time.sleep(1)
-        self.parent().approach_window()
+        # self.parent().approach_window()
+        self.parent().remove_cup()
 
     def button2_clicked(self):
         print("Button 2 clicked")
         pumpCall(2)
         # return to approach menu
         time.sleep(1)
-        self.parent().approach_window()
+        # self.parent().approach_window()
+        self.parent().remove_cup()
 
     def button3_clicked(self):
         print("Button 3 clicked")
         pumpCall(3)
         # return to approach menu
         time.sleep(1)
-        self.parent().approach_window()
+        # self.parent().approach_window()
+        self.parent().remove_cup()
 
     def button4_clicked(self):
         print("Button 4 clicked")
         pumpCall(4)
         # return to approach menu
         time.sleep(1)
-        self.parent().approach_window()
+        # self.parent().approach_window()
+        self.parent().remove_cup()
 
     def button5_clicked(self):
         print("Button 5 clicked")
         pumpCall(5)
         # return to approach menu
         time.sleep(1)
-        self.parent().approach_window()
+        # self.parent().approach_window()
+        self.parent().remove_cup()
 
     def button6_clicked(self):
         print("Button 6 clicked")
         pumpCall(6)
         # return to approach menu
         time.sleep(1)
-        self.parent().approach_window()
+        # self.parent().approach_window()
+        self.parent().remove_cup()
 
     def button7_clicked(self):
         print("Button 7 clicked")
         pumpCall(7)
         # return to approach menu
         time.sleep(1)
-        self.parent().approach_window()
+        # self.parent().approach_window()
+        self.parent().remove_cup()
 
     def button8_clicked(self):
         print("Button 8 clicked")
         pumpCall(8)
         # return to approach menu
         time.sleep(1)
-        self.parent().approach_window()
+        # self.parent().approach_window()
+        self.parent().remove_cup()
+
+
+class PlaceCupWidget(QWidget):
+    def __init__(self, parent=None):
+        super(PlaceCupWidget, self).__init__(parent)
+        w = QWidget()
+        layout = QVBoxLayout()
+
+        # create cup place graphic and instruction
+        self.cup_label = QLabel(w)
+        self.cup_label.setGeometry(100,100,400,400)
+        self.cup_label.setAlignment(Qt.AlignCenter)
+        self.cup_label.setText("Place cup")
+
+        layout.addWidget(self.cup_label)
+        self.setLayout(layout)
+
+
+class RemoveCupWidget(QWidget):
+    def __init__(self, parent=None):
+        super(RemoveCupWidget, self).__init__(parent)
+        w = QWidget()
+        layout = QVBoxLayout()
+
+        # create cup remove graphic and instruction
+        self.remove_label = QLabel(w)
+        self.remove_label.setGeometry(100,100,400,400)
+        self.remove_label.setAlignment(Qt.AlignCenter)
+        self.remove_label.setText("Place cup")
+
+        layout.addWidget(self.remove_label)
+        self.setLayout(layout)
 
 # Function for pump call
 
@@ -764,5 +802,4 @@ def pumpCall(flag):
 
 
 if __name__ == '__main__':
-    os.system("sudo service nvargus-daemon restart");
     main()

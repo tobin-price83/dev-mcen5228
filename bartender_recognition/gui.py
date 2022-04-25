@@ -128,12 +128,12 @@ class MainWindow(QWidget):
         # create and connect window navigation
         # approach window
         approach_widget = ApproachWidget(self)
-        approach_widget.button.clicked.connect(self.scan_window)
+        # approach_widget.button.clicked.connect(self.scan_window)
         self.stackedLayout.addWidget(approach_widget)
         # scan window
         scan_widget = ScanWidget(self)
-        scan_widget.scan_button.clicked.connect(self.order_window)
-        scan_widget.exit_button.clicked.connect(self.approach_window)
+        # scan_widget.scan_button.clicked.connect(self.order_window)
+        # scan_widget.exit_button.clicked.connect(self.approach_window)
         # scan_widget.video
         # scan_widget.video_thread.
         self.stackedLayout.addWidget(scan_widget)

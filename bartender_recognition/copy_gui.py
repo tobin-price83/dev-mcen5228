@@ -528,7 +528,8 @@ class ScanWidget(QWidget):
 
         # correct_face = live_video(self)
         # correct_face = False
-        if binary_known_face(self) == True:
+        # if binary_known_face(self) == True:
+        if True:
             pixmap = QPixmap('Menu w3.png')
             self.label2.setPixmap(pixmap)
             QApplication.processEvents()

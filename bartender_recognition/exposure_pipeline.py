@@ -13,7 +13,7 @@ def gstreamer_pipeline(
 	exposure_compensation=0.0,
 ):
 	return (
-	"nvarguscamerasrc sensor-id=%d !"
+	"nvarguscamerasrc sensor-id=%d, exposurecompensation=%f !"
 	"video/x-raw(memory:NVMM), width=(int)%d, height=(int)%d, framerate=(fraction)%d/%d ! "
 	"nvvidconv flip-method=%d ! "
 	"video/x-raw, width=(int)%d, height=(int)%d, format=(string)BGRx ! "
@@ -21,6 +21,7 @@ def gstreamer_pipeline(
 	"video/x-raw, format=(string)BGR ! appsink"
 	% (
 	sensor_id,
+	exposure_compensation,
 	capture_width,
 	capture_height,
 	framerate,

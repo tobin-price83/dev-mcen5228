@@ -123,7 +123,7 @@ def binary_known_face(face_encoding):
 
     best_match_index = np.argmin(face_distances)
 
-    if face_distances[best_match_index] < 0.6:
+    if face_distances[best_match_index] < 0.52:
         metadata = known_face_metadata[best_match_index]
 
     print("Face Distance")
@@ -806,14 +806,14 @@ class OrderWidget(QWidget):
         # pixmap = QPixmap('Menu y1.png')
         # self.label1.setPixmap(pixmap)
         # QApplication.processEvents()
-        pumpCall(1)
+        # pumpCall(1)
         # # return to approach menu
         # time.sleep(1)
         # pixmap = QPixmap('Menu y2.png')
         # self.label1.setPixmap(pixmap)
         # QApplication.processEvents()
         # time.sleep(2)
-        # time.sleep(1)
+        time.sleep(1)
         self.parent().remove_cup()
 
     def button2_clicked(self):
@@ -821,54 +821,54 @@ class OrderWidget(QWidget):
         # pixmap = QPixmap('Menu y1.png')
         # self.label1.setPixmap(pixmap)
         # QApplication.processEvents()
-        pumpCall(2)
+        # pumpCall(2)
         # # return to approach menu
         # time.sleep(1)
         # pixmap = QPixmap('Menu y2.png')
         # self.label1.setPixmap(pixmap)
         # QApplication.processEvents()
         # time.sleep(2)
-        # time.sleep(1)
+        time.sleep(1)
         self.parent().remove_cup()
 
     def button3_clicked(self):
         print("Button 3 clicked")
-        pumpCall(3)
+        # pumpCall(3)
         # return to approach menu
         time.sleep(1)
         self.parent().remove_cup()
 
     def button4_clicked(self):
         print("Button 4 clicked")
-        pumpCall(4)
+        # pumpCall(4)
         # return to approach menu
         time.sleep(1)
         self.parent().remove_cup()
 
     def button5_clicked(self):
         print("Button 5 clicked")
-        pumpCall(5)
+        # pumpCall(5)
         # return to approach menu
         time.sleep(1)
         self.parent().remove_cup()
 
     def button6_clicked(self):
         print("Button 6 clicked")
-        pumpCall(6)
+        # pumpCall(6)
         # return to approach menu
         time.sleep(1)
         self.parent().remove_cup()
 
     def button7_clicked(self):
         print("Button 7 clicked")
-        pumpCall(7)
+        # pumpCall(7)
         # return to approach menu
         time.sleep(1)
         self.parent().remove_cup()
 
     def button8_clicked(self):
         print("Button 8 clicked")
-        pumpCall(8)
+        # pumpCall(8)
         # return to approach menu
         time.sleep(1)
         self.parent().remove_cup()
